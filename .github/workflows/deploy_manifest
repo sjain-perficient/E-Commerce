@@ -1,0 +1,44 @@
+# This workflow will build manifest and deploy
+name: Workato Recipe Promotion
+on:
+  push:
+    branches: [qa,main]
+  pull_request:
+    branches: [ dev ]
+jobs:
+  set-github-variables:
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.event.repository.name }}
+      Message:  ${{ github.event.head_commit.message }}
+      UserName: ${{ github.event.head_commit.author.username }}
+      GithubURL: ${{ github.event.head_commit.url }}  
+      Branch: ${{ github.event.repository.branch }} 
+    steps:
+      - name: Set the variables
+        run: echo Repository Name is $REPO
+      - run: echo  Approval Comment $Message
+      - run: echo  Github Commit URL is $GithubURL
+      - run: echo  Pull Request Approved by $UserName
+      - run: echo  Pull Request Approved by $Branch
+      
+  
+  call-workato-devops-recipe:
+    needs: set-github-variables
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.event.repository.name }}
+      Message:  ${{ github.event.head_commit.message }}
+      UserName: ${{ github.event.head_commit.author.username }}
+      GithubURL: ${{ github.event.head_commit.url }}  
+      Branch: ${{ github.event.repository.branch }} 
+    steps:
+      - name: Import Manifest
+        run: |
+            CODE=`curl --request POST "https://webhooks.workato.com/webhooks/rest/0a268421-8708-41ae-a6f1-e219f4df26bc/deploymanifest" -H "Content-type:application/json"  -d '{"Environment":${{ env.Branch }}, "Github-Commit-UserName":"${{ env.UserName }}", "Github-Commit-URL": "${{ env.GithubURL }}", "GitHub-Repo-Name":"${{ env.REPO }}"}'`
+            if [ $CODE!=200 ] 
+            then
+            echo "FAILURE" $CODE
+            else
+            echo "SUCCESS" $CODE
+            fi            
